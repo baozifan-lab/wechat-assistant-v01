@@ -1,0 +1,36 @@
+{
+  "demo": true,
+  "skill": "excel.merge.v1",
+  "input_files": [
+    {
+      "name": "部门报表乙_示例.xlsx",
+      "rows": 4
+    },
+    {
+      "name": "部门报表甲_示例.xlsx",
+      "rows": 4
+    }
+  ],
+  "input_rows": 8,
+  "output_rows": 6,
+  "duplicate_rows": 1,
+  "invalid_rows": 1,
+  "total_amount": 5000.75,
+  "issues": [
+    {
+      "source": "部门报表乙_示例.xlsx",
+      "sourceRow": 5,
+      "kind": "异常隔离",
+      "id": "DEMO-007",
+      "reason": "必填字段为空"
+    },
+    {
+      "source": "部门报表甲_示例.xlsx",
+      "sourceRow": 3,
+      "kind": "完全重复",
+      "id": "DEMO-002",
+      "reason": "与已保留记录一致，按文档规则去重"
+    }
+  ],
+  "reconciliation_passed": true
+}

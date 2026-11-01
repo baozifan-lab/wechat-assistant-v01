@@ -1,0 +1,15 @@
+{
+  "id": "zhishi-wechat-bridge",
+  "name": "Zhishi WeChat task bridge",
+  "activation": { "onStartup": true },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "serviceUrl": { "type": "string" },
+      "secretPath": { "type": "string" },
+      "routePath": { "type": "string" }
+    },
+    "required": ["serviceUrl", "secretPath", "routePath"]
+  }
+}
