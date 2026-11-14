@@ -1,25 +1,549 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8"><meta name="pilot-token" content="__PILOT_TOKEN__"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>知事 · 微信工作助理试点</title>
-<link rel="stylesheet" href="/static/styles.css">
+    <meta charset="utf-8">
+    <meta name="pilot-token" content="__PILOT_TOKEN__">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#faf9f5">
+    <title>知事 · 工作空间</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
-<div class="shell"><aside class="side"><div class="brand"><span class="logo">知</span><div>知事<small>WORK COMPANION</small></div></div><nav class="nav" aria-label="主导航"><button class="active" data-panel="work"><span class="symbol">◷</span>我的工作台</button><button data-panel="settings"><span class="symbol">⌘</span>模型与接入</button><button data-panel="logs"><span class="symbol">≋</span>提醒记录</button></nav><div class="side-note"><span class="status-dot"></span>本地服务运行中<strong>从一件事开始，持续跟进。</strong>个人试点 · v0.1<br>所有时间按北京时间</div></aside>
-<main class="main"><header><div><div class="eyebrow" id="day">PERSONAL PILOT</div><h1 id="heading">把事情交代清楚，放心去忙。</h1><p class="subtitle">记录待办，按时提醒，收到回复后继续跟进。</p></div><div class="top-actions"><span class="badge">个人试点</span><button class="primary" id="add">＋ 新建事项</button></div></header>
-<div class="notice" id="channel-notice">演示通道 · 提醒只会出现在本页。微信尚未连接；这里的发送记录不代表微信已送达。</div>
-<section class="panel active" id="panel-work"><div class="metrics"><div class="metric"><div class="label">待完成事项</div><div class="number" id="open-count">0</div><div class="foot">清楚记录每一件事</div></div><div class="metric"><div class="label">等待提醒</div><div class="number" id="scheduled-count">0</div><div class="foot">后台持续检查时间</div></div><div class="metric"><div class="label">已经完成</div><div class="number" id="done-count">0</div><div class="foot">完成后停止提醒</div></div></div>
-<div class="workspace"><section class="card"><div class="card-head"><div><h2>我的待办</h2><div class="section-caption">截止时间与下次提醒分别记录</div></div><span class="badge" id="task-status">持续跟进</span></div><div class="task-list" id="tasks"></div></section>
-<section class="card chat-card"><div class="card-head"><div class="chat-title"><div class="avatar">知</div><div><h2>工作助理</h2><div class="section-caption">微信对话体验 · 本地演示</div></div></div><span class="badge" id="mode-badge">规则模式</span></div><div class="chat-log" id="chat" role="log" aria-label="助理消息"></div><form class="composer" id="chat-form"><div class="quick"><button type="button" data-say="我的待办">我的待办</button><button type="button" data-say="10 秒后提醒我检查试点效果">体验 10 秒提醒</button><button type="button" data-say="30 分钟后提醒我回复客户">记录一件事</button></div><div class="input-row"><input id="chat-input" aria-label="给助理发消息" maxlength="2000" autocomplete="off" placeholder="例如：10 分钟后提醒我回复客户"><button class="primary" id="send">发送</button></div><p class="caption">支持明确时间、事项编号。普通聊天与复杂自然语言需连接模型。</p></form></section></div>
-<div class="card under"><div><h2>先把提醒流程跑通</h2><p>新建事项 → 到点收到提醒 → 回复完成或稍后提醒</p></div><button id="demo">试一次</button></div></section>
-<section class="panel" id="panel-settings"><div class="settings-grid"><section class="card"><div class="card-head"><h2>模型调配</h2><span class="badge" id="model-status">未连接</span></div><form class="body" id="settings-form"><p class="subtitle">通过统一模型入口，替换不同供应商或私有部署模型。</p><div class="field"><label for="mode">理解指令的方式</label><select id="mode"><option value="rules">规则模式 · 无模型费用</option><option value="model">模型模式 · 复杂表达交给模型</option></select><small>明确指令优先由规则处理，提醒计时不依赖模型。</small></div><div class="field"><label for="model">自然语言理解模型</label><select id="model"></select><small>模型名称使用网关别名，供应商和密钥在服务端配置。</small></div><button class="primary">保存设置</button><div class="scope">当前仅支持一个“理解指令”模型。按任务分类路由、自动备用模型和按员工计费由下一阶段接入 LiteLLM 后配置。</div></form></section>
-<section class="card"><div class="card-head"><h2>微信 ClawBot</h2><span class="badge offline" id="wechat-status">待连接</span></div><div class="body"><p class="subtitle">通过腾讯官方 OpenClaw 微信插件连接本人账号。</p><div style="margin:18px 0"><button class="primary" type="button" id="wechat-connect">连接微信／刷新二维码</button><p id="wechat-login-state" class="subtitle" style="margin-top:12px">等待开始连接。</p><img id="wechat-qr" alt="请用本人微信扫一扫授权" width="240" height="240" style="display:none;margin-top:14px;max-width:100%;height:auto;border-radius:8px"></div><div class="step"><span>1</span>在独立试点环境安装 OpenClaw 和官方插件</div><div class="step"><span>2</span>本人扫码授权，并先发送一条测试消息</div><div class="step"><span>3</span>验证即时、隔夜、重启后的主动提醒</div><div class="step"><span>4</span>把微信消息连接到任务服务，核对完成与延期回复</div><p class="steps-note">本人授权后，微信文字消息会进入待办服务，到点提醒会发送到绑定会话。页面会区分“已提交微信”和“手机已确认”，不把接口成功当作已读。</p><p style="margin-top:20px"><a href="https://github.com/Tencent/openclaw-weixin" target="_blank" rel="noreferrer">查看腾讯官方接入说明 ↗</a></p></div></section></div></section>
-<section class="panel" id="panel-logs"><section class="card"><div class="card-head"><div><h2>提醒记录</h2><div class="section-caption">本地演示的任务与发送结果</div></div><span class="badge">不等于微信送达</span></div><div style="overflow:auto"><table class="logs"><thead><tr><th>事项</th><th>创建时间</th><th>处理状态</th></tr></thead><tbody id="log-rows"></tbody></table></div><div class="body subtitle">正式接入会分别记录：待发送、提交渠道、发送失败、结果不明确、本人确认。渠道接口成功不能直接视为员工已看到。</div></section></section>
-<footer><span>知事 · 微信工作助理 v0.1</span><span id="clock">北京时间</span></footer></main></div>
-<dialog id="task-dialog"><form id="task-form"><div class="eyebrow">NEW TASK</div><h2 style="margin-top:4px">交代一件事</h2><div class="field"><label for="title">需要做什么</label><input id="title" required maxlength="300" placeholder="例如：提交项目周报"></div><div class="field"><label for="due">什么时候提醒（北京时间）</label><input id="due" type="datetime-local" required><small>首次提醒时间也作为原截止时间保存。</small></div><div class="dialog-actions"><button type="button" id="close-dialog">取消</button><button class="primary">记录并提醒</button></div></form></dialog>
-<div class="toast" id="toast" role="status"></div>
+    <!-- 侧边导航 -->
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
+    <nav class="sidebar" id="appSidebar" aria-label="主导航">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor"><path d="M7 7h18v18H7zM12 7v18M12 13h13M17 19h8"/></svg></div>
+            <div class="brand-text">
+                <div class="brand-title">知事</div>
+                <div class="brand-subtitle">团队工作空间</div>
+            </div>
+            <button class="icon-button mobile-sidebar-close" id="mobileSidebarClose" type="button" aria-label="关闭侧栏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+        </div>
 
-<script type="module" src="/static/workflow.js"></script>
+        <div class="nav-links">
+            <p class="nav-group-label">工作空间</p>
+            <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>工作台</span>
+            </a>
+            <a href="#tasks" class="nav-link" data-page="tasks">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                </svg>
+                <span>任务清单</span><span class="nav-count" id="navTaskCount" hidden></span>
+            </a>
+            <a href="#chat" class="nav-link" data-page="chat">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                </svg>
+                <span>对话</span>
+            </a>
+            <a href="#accounts" class="nav-link" data-page="accounts">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="9" cy="8" r="3"></circle>
+                    <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 3 5"></path>
+                </svg>
+                <span>账户管理</span>
+            </a>
+            <p class="nav-group-label nav-management">管理</p>
+            <a href="#settings" class="nav-link" data-page="settings">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m9 3-.5 2-2 1-2-.5-2 3 1.5 1.5v3L2.5 14l2 3 2-.5 2 1L9 20h4l.5-2.5 2-1 2 .5 2-3-1.5-1v-3L19.5 8l-2-3-2 .5-2-1L13 3z"></path>
+                    <circle cx="11" cy="11.5" r="3"></circle>
+                </svg>
+                <span>设置</span>
+            </a>
+        </div>
+
+        <div class="sidebar-bottom">
+            <button class="sidebar-help" id="helpButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 3.5M12 16.5h.01"/></svg><span>使用帮助</span><kbd>?</kbd></button>
+            <div class="workspace-user"><span class="user-avatar">我</span><div><strong>本地使用者</strong><small>本地工作空间</small></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 9 3-3 3 3m-6 6 3 3 3-3"/></svg></div>
+        </div>
+        <div class="sidebar-status">
+            <div class="status-line">
+                <span class="status-dot" id="serviceIndicator"></span>
+                <span id="serviceStatus">正在连接服务</span>
+            </div>
+            <div class="status-time" id="currentTime"></div>
+        </div>
+    </nav>
+
+        <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="关闭导航"></button>
+
+    <!-- 主内容 -->
+    <main class="content" id="mainContent" tabindex="-1">
+        <div class="workspace-bar">
+            <div class="workspace-leading">
+                <button class="icon-button" id="sidebarToggle" type="button" aria-label="收起侧栏" aria-controls="appSidebar" aria-expanded="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+                <span class="toolbar-divider"></span>
+                <nav class="top-nav" aria-label="当前位置"><a href="#dashboard">我的工作空间</a><span class="breadcrumb-separator" aria-hidden="true">/</span><span id="currentPageName" aria-current="page">工作台</span></nav>
+            </div>
+            <div class="workspace-tools">
+                <button class="command-trigger" id="openSearch" type="button" aria-label="搜索任务或页面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>搜索任务或前往…</span><kbd>Ctrl K</kbd></button>
+                <button class="icon-button" id="themeToggle" type="button" aria-label="切换到深色模式" title="切换明暗主题"><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 13a8 8 0 0 1-9-9 8 8 0 1 0 9 9Z"/></svg></button>
+                <a class="icon-button" href="#settings" aria-label="打开设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m10 3-1 3-3 1-2 3 2 3v3l3 2 3-1 3 1 3-2v-3l2-3-2-3-3-1-1-3Z"/><circle cx="12" cy="11" r="3"/></svg></a>
+                <span class="toolbar-avatar" title="本地使用者" aria-label="本地使用者">我</span>
+            </div>
+        </div>
+        <!-- 工作台 -->
+        <section class="page active" id="page-dashboard">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-heading" id="dashboardGreeting">你好</h1>
+                    <p class="page-desc" id="greetingText">正在读取任务状态</p>
+                </div>
+                <button class="btn-primary" id="quickAddTask">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    新建任务
+                </button>
+            </header>
+
+<div class="overview-toolbar"><nav class="overview-tabs" aria-label="工作台视图"><button type="button" class="overview-tab active" data-overview="all" aria-pressed="true">全部工作</button><button type="button" class="overview-tab" data-overview="reminder" aria-pressed="false">待办提醒</button><button type="button" class="overview-tab" data-overview="collaboration" aria-pressed="false">协作任务</button></nav><button class="btn-secondary export-button" id="exportTasks" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>导出任务</button></div>
+            <!-- 统计概览 -->
+            <div class="metrics">
+                <div class="metric metric-main">
+                    <div class="metric-label">进行中任务<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg></div>
+                    <div class="metric-number" id="stat-pending">—</div>
+                    <div class="metric-note">正在推进的工作</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">已完成任务<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></div>
+                    <div class="metric-number" id="stat-completed">—</div>
+                    <div class="metric-note">保留每一次完成记录</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">需要处理<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3h.01"/></svg></div>
+                    <div class="metric-number" id="stat-scheduled">—</div>
+                    <div class="metric-note">等待回复或需要检查</div>
+                </div>
+                <div class="metric metric-channel">
+                    <div class="metric-label">通知渠道<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></div>
+                    <div class="metric-number" id="stat-channel">—</div>
+                    <div class="metric-note">以当前连接状态为准</div>
+                </div>
+            </div>
+
+            <div class="dashboard-work-grid">
+                <section class="section activity-panel" aria-labelledby="activityTitle">
+                    <div class="insight-header"><div><h2 class="section-title" id="activityTitle">任务动态</h2><p class="section-description">最近 7 天创建的任务</p></div><span class="subtle-badge">最近 7 天</span></div>
+                    <div class="activity-chart" id="activityChart" aria-live="polite"><p class="empty-state">正在读取任务动态…</p></div>
+                    <div class="chart-footer"><span><i class="chart-key"></i>新增任务</span><span id="activitySummary">正在统计</span></div>
+                </section>
+                <section class="section progress-panel" aria-labelledby="progressTitle">
+                    <div class="insight-header"><div><h2 class="section-title" id="progressTitle">工作进展</h2><p class="section-description">当前任务的状态分布</p></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20V10m6 10V4m6 16v-7m5 7H2"/></svg></div>
+                    <div id="statusDistribution" class="status-distribution"><p class="empty-state">正在统计任务…</p></div>
+                    <a class="progress-link" href="#tasks">前往任务清单<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></a>
+                </section>
+            </div>
+            <div class="dashboard-secondary-grid">
+            <section class="section dashboard-task-panel" aria-labelledby="recentTaskTitle">
+                <div class="section-header"><div><h2 class="section-title" id="recentTaskTitle">最近任务</h2><p class="section-description" id="recentTaskSummary">待办与协作，集中跟进</p></div><a href="#tasks" class="link">查看全部<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 5 7 7-7 7"/></svg></a></div>
+                <div id="recentTasks" class="checklist"></div>
+            </section>
+            <section class="quick-actions-section" aria-labelledby="quickActionsTitle"><h2 class="section-title" id="quickActionsTitle">快速操作</h2><div class="actions">
+                <button class="action-item" data-say="我的待办"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 6 2 2 4-4m2 3h8M4 13h16M4 19h12"/></svg><span class="action-label">查看待办</span><span class="action-desc">让助理整理当前清单</span></button>
+                <button class="action-item" data-draft="30 分钟后提醒我"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="action-label">30 分钟后提醒</span><span class="action-desc">填写事项，交给助理</span></button>
+                <button class="action-item" data-draft="明天上午9点提醒我"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18"/></svg><span class="action-label">明天提醒</span><span class="action-desc">预设明天上午 9 点</span></button>
+                <button class="action-item" id="testReminderBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3h6m-3 0v3m6 1 2-2"/><circle cx="12" cy="14" r="8"/><path d="M12 10v4l2 2"/></svg><span class="action-label">测试 10 秒提醒</span><span class="action-desc">检查本地通知是否正常</span></button>
+            </div></section>
+            </div>
+            <footer class="workspace-footer"><span>知事 · 把工作有序推进</span><span>任务状态自动更新</span></footer>
+        </section>
+
+        <!-- 任务清单 -->
+        <section class="page" id="page-tasks">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-heading">任务清单</h1>
+                    <p class="page-desc">在一张清单里推进待办、AI 协作和工作流</p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn-primary" id="addTaskBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        新建任务
+                    </button>
+                </div>
+            </header>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">启动协作任务</h2>
+                    <a href="#settings" class="link">配置接口</a>
+                </div>
+                <div class="panel-body" id="workflowTemplates"></div>
+            </section>
+
+            <details class="panel" id="message-preview">
+                <summary class="panel-header">
+                    <span class="panel-title">查看派单示例</span>
+                </summary>
+                <div class="panel-body" id="message-preview-body"></div>
+            </details>
+
+            <section class="panel task-records" aria-labelledby="taskRecordsTitle">
+                <div class="panel-header">
+                    <h2 class="panel-title" id="taskRecordsTitle">任务记录</h2>
+                    <span class="list-count" id="taskResultCount" role="status">正在读取</span>
+                </div>
+                <div class="filter-group" role="group" aria-label="筛选任务状态">
+                    <button class="filter-btn active" data-filter="all" type="button">全部</button>
+                    <button class="filter-btn" data-filter="open" type="button">进行中</button>
+                    <button class="filter-btn" data-filter="done" type="button">已完成</button>
+                    <button class="filter-btn" data-filter="blocked" type="button">需处理</button>
+                    <button class="filter-btn" data-filter="cancelled" type="button">已取消</button>
+                    <button class="filter-btn" data-filter="history" type="button">历史模拟</button>
+                </div>
+                <form id="taskSearchForm" class="task-search" role="search" aria-label="查找任务记录">
+                    <div class="field"><label class="label" for="taskSearch">任务编号或名称</label><input class="input" type="search" id="taskSearch" placeholder="输入编号或任务名称" maxlength="300"></div>
+                    <div class="field"><label class="label" for="taskStartDate">创建日期从（北京时间）</label><input class="input" type="date" id="taskStartDate"></div>
+                    <div class="field"><label class="label" for="taskEndDate">至</label><input class="input" type="date" id="taskEndDate"></div>
+                    <button class="btn-secondary" type="button" id="clearTaskSearch">清空筛选</button>
+                    <p class="error-text" id="taskSearchError" role="status" hidden>开始日期不能晚于结束日期。</p>
+                </form>
+                <div id="tasksList" class="task-listing"></div>
+            </section>
+        </section>
+
+        <!-- 对话助理 -->
+        <section class="page" id="page-chat">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-heading">对话助理</h1>
+                    <p class="page-desc">记录待办，或选择任务继续协作</p>
+                </div>
+                <div class="mode-badge" id="chatModeBadge">规则模式</div>
+            </header>
+
+            <div class="chat-picker">
+                <label for="chatTarget">当前对话</label>
+                <select id="chatTarget" class="select">
+                    <option value="assistant">日常待办助理</option>
+                </select>
+                <p id="chatContextHint" class="hint"></p>
+            </div>
+
+            <div class="chat-box">
+                <div class="chat-history" id="chatMessages"></div>
+                <div class="chat-compose">
+                    <div class="quick-phrases">
+                        <button class="phrase" data-say="清单">今日清单</button>
+                        <button class="phrase" data-say="我的待办">我的待办</button>
+                        <button class="phrase" data-say="30 分钟后提醒我回复客户">30分钟提醒</button>
+                        <button class="phrase" data-say="明天上午9点提醒我开会">明天提醒</button>
+                    </div>
+                    <form class="chat-form" id="chatForm">
+                        <input
+                            type="text"
+                            class="chat-input"
+                            id="chatInput"
+                            aria-label="输入消息"
+                            placeholder="告诉助理你想做什么"
+                            maxlength="2000"
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="btn-send" id="sendBtn" aria-label="发送">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- 员工与微信连接 -->
+        <section class="page" id="page-accounts">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-heading">账户管理</h1>
+                    <p class="page-desc">管理员工与微信连接，新员工独立扫码授权</p>
+                </div>
+                <button class="btn-primary" id="addAccount" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"></path></svg>
+                    添加员工
+                </button>
+            </header>
+            <div class="account-summary" aria-label="账户概览">
+                <div><span class="account-summary-label">连接账户</span><span id="accountTotal" class="account-summary-number">—</span></div>
+                <div><span class="account-summary-label"><span class="status-dot active" aria-hidden="true"></span>已连接</span><span id="accountOnline" class="account-summary-number">—</span></div>
+                <div><span class="account-summary-label">待扫码连接</span><span id="accountUnbound" class="account-summary-number">—</span></div>
+            </div>
+            <section class="panel account-panel" aria-labelledby="accountListTitle">
+                <div class="panel-header account-toolbar">
+                    <h2 class="panel-title" id="accountListTitle">员工与微信</h2>
+                    <div class="account-tools">
+                        <input type="search" class="input account-search" id="accountSearch" aria-label="搜索姓名或微信备注" placeholder="搜索姓名或微信备注" maxlength="100">
+                        <select class="select account-filter" id="accountFilter" aria-label="筛选连接状态">
+                            <option value="all">全部状态</option>
+                            <option value="online">已连接</option>
+                            <option value="unbound">未连接</option>
+                            <option value="attention">需要检查</option>
+                            <option value="deleted">已删除</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="account-feedback" id="accountError" role="alert" hidden></p>
+                <div class="account-columns" aria-hidden="true"><span>员工</span><span>微信账户</span><span>连接状态</span><span>操作</span></div>
+                <div id="accountList" aria-live="polite"><p class="empty-state">正在读取员工账户…</p></div>
+                <div class="account-list-footer"><span id="accountResultCount">—</span><button class="task-action-btn" type="button" id="refreshAccounts">刷新状态</button></div>
+            </section>
+            <aside class="account-guide">
+                <div class="account-guide-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"></path></svg></div>
+                <div><h2>添加后，由员工本人扫码</h2><p>填写姓名 → 打开连接窗口 → 员工用自己的微信扫码并确认。每位新员工的授权独立保存，新增连接不会自动加入正在进行的任务。</p><p>原主微信保留负责人 / 员工1共用的方式。姓名与微信备注可编辑，扫码授权以连接状态和账户指纹为准。</p></div>
+            </aside>
+        </section>
+
+        <!-- 设置 -->
+        <section class="page" id="page-settings">
+            <header class="page-head">
+                <div>
+                    <h1 class="page-heading">系统设置</h1>
+                    <p class="page-desc">管理模型接口与提醒记录；微信连接请前往<a class="link" href="#accounts">账户管理</a></p>
+                </div>
+            </header>
+
+            <div class="settings-layout">
+                <section class="panel panel-large">
+                    <div class="panel-header">
+                        <h2 class="panel-title">AI 协作接口</h2>
+                        <span class="badge" id="workflowModelStatus">正在读取</span>
+                    </div>
+                    <form class="panel-body" id="workflowModelForm" autocomplete="off">
+                        <p class="desc">用于理解负责人和员工的任务回复</p>
+
+                        <div class="field">
+                            <label class="label" for="workflowPreset">快速配置模板（可选）</label>
+                            <select class="select" id="workflowPreset">
+                                <option value="">手动配置</option>
+                                <option value="openai">OpenAI (gpt-4o)</option>
+                                <option value="qwen">通义千问 (qwen-max)</option>
+                                <option value="deepseek">DeepSeek (deepseek-chat)</option>
+                                <option value="litellm">本地 LiteLLM (localhost:4000)</option>
+                            </select>
+                            <p class="hint">选择模板后自动填充地址和模型，仍需手动填写密钥</p>
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="workflowBase">接口地址（Base URL）</label>
+                            <input class="input" id="workflowBase" type="url" required maxlength="1000" placeholder="https://平台地址/v1">
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="workflowModel">模型 ID</label>
+                            <input class="input" id="workflowModel" required maxlength="200" placeholder="qwen3.8-max">
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="workflowKey">API Key</label>
+                            <div class="key-input-group">
+                                <input class="input" id="workflowKey" type="password" maxlength="4000" autocomplete="new-password">
+                                <button type="button" class="btn-secondary" id="workflowKeyToggle">显示</button>
+                            </div>
+                            <p class="hint" id="workflowKeyHint"></p>
+                        </div>
+
+                        <details class="field-group">
+                            <summary>更多设置</summary>
+                            <label class="checkbox">
+                                <input id="workflowBrief" type="checkbox">
+                                <span>请求关闭深度思考</span>
+                            </label>
+                            <label class="checkbox">
+                                <input id="workflowJson" type="checkbox">
+                                <span>请求 JSON 格式</span>
+                            </label>
+                        </details>
+
+                        <div class="button-group">
+                            <button class="btn-primary" type="submit">保存并应用</button>
+                            <button class="btn-secondary" type="button" id="workflowTest">测试连接</button>
+                            <button class="btn-secondary" type="button" id="workflowClear">清除密钥</button>
+                        </div>
+
+                        <p class="hint" id="workflowFeedback" role="status"></p>
+                        <p class="hint">密钥在本机加密保存。连接测试会调用所填接口，不启动任务或联系员工。</p>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">日常待办理解</h2>
+                        <div class="badge" id="modelStatusBadge">未配置</div>
+                    </div>
+                    <form class="panel-body" id="settingsForm">
+                        <div class="field">
+                            <label class="label" for="modeSelect">工作模式</label>
+                            <select class="select" id="modeSelect">
+                                <option value="rules">规则模式</option>
+                                <option value="model">模型模式</option>
+                            </select>
+                            <p class="hint">仅用于普通待办；不影响AI协作接口</p>
+                        </div>
+
+                        <div class="field">
+                            <label class="label" for="modelSelect">理解模型</label>
+                            <select class="select" id="modelSelect"></select>
+                        </div>
+
+                        <button type="submit" class="btn-primary">保存设置</button>
+                    </form>
+                </section>
+
+
+            </div>
+
+
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">提醒记录</h2>
+                    <span class="badge-text">最近 30 条</span>
+                </div>
+                <div class="panel-body panel-body-flush">
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>任务内容</th>
+                                    <th>发送时间</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <!-- 对话框：新建任务 -->
+    <dialog class="dialog" id="taskModal" aria-labelledby="taskModalTitle">
+        <div class="dialog-content">
+            <div class="dialog-header">
+                <h2 class="dialog-title" id="taskModalTitle">新建任务</h2>
+                <button class="dialog-close" id="closeModal" type="button" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="taskForm">
+                <div class="dialog-body">
+                    <div class="field"><label class="label" for="taskTemplate">任务类型</label><select class="select" id="taskTemplate"><option value="reminder">普通待办提醒</option><option value="custom">自定义员工任务</option></select></div>
+                    <div class="field">
+                        <label class="label" for="taskTitle">任务内容</label>
+                        <input
+                            type="text"
+                            class="input"
+                            id="taskTitle"
+                            placeholder="例如：提交项目周报"
+                            required
+                            maxlength="300"
+                        >
+                    </div>
+                    <div class="field">
+                        <label class="label" for="taskDue">安排时间（北京时间）</label>
+                        <input
+                            type="datetime-local"
+                            class="input"
+                            id="taskDue"
+                            required
+                        >
+                        <p class="hint" id="taskCreateHint">首次提醒时间也作为截止时间保存</p>
+                    </div>
+                    <fieldset class="staff-picker" id="taskStaffField" hidden><legend>执行员工（可多选）</legend><div id="taskStaff"></div></fieldset>
+                    <div id="taskRoleFields" hidden></div>
+                    <p class="error-text" id="taskFormError" role="alert"></p>
+                </div>
+                <div class="dialog-footer">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('taskModal').close()">取消</button>
+                    <button type="submit" class="btn-primary">创建任务</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog class="dialog" id="fileModal" aria-labelledby="fileModalTitle">
+        <div class="dialog-header"><h2 class="dialog-title" id="fileModalTitle">上传文件更正任务</h2><button class="dialog-close" id="closeFileModal" type="button" aria-label="关闭文件更正窗口">×</button></div>
+        <form id="fileReplaceForm">
+            <div class="dialog-body">
+                <p class="hint">旧文件保留。更正后相关确认失效，任务将退回重新核对。</p>
+                <div class="field"><label class="label" for="fileSlot">替换位置</label><select class="select" id="fileSlot" required></select></div>
+                <div class="field"><label class="label" for="replacementFile">新版文件（最大 20 MB）</label><input class="input" type="file" id="replacementFile" required accept=".xlsx,.csv"></div>
+                <div class="field"><label class="label" for="fileReason">更正说明</label><textarea class="input" id="fileReason" rows="3" required maxlength="1000" placeholder="说明旧文件哪里有误，本次修改了什么"></textarea></div>
+                <p class="error-text" id="fileReplaceError" role="alert"></p>
+            </div>
+            <div class="dialog-footer"><button class="btn-secondary" type="button" id="cancelFileReplace">取消</button><button class="btn-primary" id="submitFileReplace" type="submit">保存新版并重新核对</button></div>
+        </form>
+    </dialog>
+
+    <dialog class="dialog dialog-large" id="workModal" aria-labelledby="workTitle">
+        <div class="dialog-content">
+            <div class="dialog-header">
+                <h2 class="dialog-title" id="workTitle">任务详情</h2>
+                <button class="dialog-close" id="closeWorkModal" type="button" aria-label="关闭">×</button>
+            </div>
+            <div class="dialog-body" id="workDetail"></div>
+        </div>
+    </dialog>
+
+    <dialog class="dialog" id="accountModal" aria-labelledby="accountModalTitle">
+        <div class="dialog-header"><h2 class="dialog-title" id="accountModalTitle">添加员工</h2><button type="button" class="dialog-close" id="closeAccountModal" aria-label="关闭员工编辑窗口">×</button></div>
+        <form id="accountForm">
+            <div class="dialog-body">
+                <div class="field"><label class="label" for="accountName">员工姓名 <span class="field-required">必填</span></label><input class="input" id="accountName" required maxlength="60" placeholder="例如：员工3 / 张明" autocomplete="off"></div>
+                <div class="field"><label class="label" for="accountWechatNote">微信号或微信备注</label><input class="input" id="accountWechatNote" maxlength="100" placeholder="用于区分账户，可稍后填写" autocomplete="off"><p class="hint">这里填写的是备注；保存后还需扫码确认微信授权</p></div>
+                <div class="field"><label class="label" for="accountNote">工作备注</label><textarea class="input" id="accountNote" maxlength="300" rows="3" placeholder="例如：财务组，负责发票复核"></textarea></div>
+                <p id="accountFormFeedback" class="error-text" role="status"></p>
+            </div>
+            <div class="dialog-footer"><button type="button" class="btn-secondary" id="cancelAccountEdit">取消</button><button class="btn-primary" type="submit" id="saveAccount">保存员工</button></div>
+        </form>
+    </dialog>
+    <dialog class="dialog" id="deleteAccountModal" aria-labelledby="deleteAccountTitle" aria-describedby="deleteAccountWarning">
+        <div class="dialog-header"><h2 class="dialog-title" id="deleteAccountTitle">删除员工</h2><button type="button" class="dialog-close" id="closeDeleteAccount" aria-label="关闭删除确认">×</button></div>
+        <div class="dialog-body">
+            <p id="deleteAccountName" class="account-name"></p>
+            <p id="deleteAccountWarning" class="desc"></p>
+            <p class="hint">已提交的消息不能撤回，任务记录会保留。误删可在“已删除”中恢复。</p>
+            <p id="deleteAccountFeedback" class="error-text" role="status"></p>
+        </div>
+        <div class="dialog-footer"><button type="button" class="btn-secondary" id="cancelDeleteAccount" autofocus>取消</button><button type="button" class="btn-primary btn-danger" id="confirmDeleteAccount">删除员工</button></div>
+    </dialog>
+    <dialog class="dialog" id="accountConnectModal" aria-labelledby="accountConnectTitle">
+        <div class="dialog-header"><h2 class="dialog-title" id="accountConnectTitle">连接微信</h2><button type="button" class="dialog-close" id="closeAccountConnect" aria-label="关闭微信连接窗口">×</button></div>
+        <div class="dialog-body account-connect-body">
+            <p class="account-connect-person" id="accountConnectName"></p>
+            <p class="hint">请让这位员工用自己的微信扫码，并在手机上确认授权</p>
+            <div class="account-qr-stage" id="accountQrStage"><img id="accountQr" class="qr-image" alt="当前员工的微信授权二维码" hidden><div class="account-qr-placeholder" id="accountQrPlaceholder"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM21 15v6h-6M18 18h3"></path></svg><span>正在申请二维码</span></div></div>
+            <p id="accountConnectStatus" class="account-connect-status" role="status">正在连接…</p>
+            <p id="accountConnectDetail" class="hint"></p>
+        </div>
+        <div class="dialog-footer"><button type="button" class="btn-secondary account-pause" id="pauseAccount" hidden>停用连接</button><button type="button" class="btn-secondary" id="refreshAccountQr">刷新二维码</button><button type="button" class="btn-primary" id="doneAccountConnect">完成</button></div>
+    </dialog>
+
+    <dialog class="dialog command-dialog" id="commandDialog" aria-labelledby="commandTitle"><div class="command-input-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><label class="sr-only" id="commandTitle" for="commandInput">搜索任务或页面</label><input id="commandInput" placeholder="搜索任务名称、编号或页面…" autocomplete="off" maxlength="300"><button class="command-close" id="closeSearch" type="button" aria-label="关闭搜索">Esc</button></div><div id="commandResults" class="command-results" aria-live="polite"></div><div class="command-footer"><span>↑ ↓ 选择</span><span>Enter 打开</span><span>Esc 关闭</span></div></dialog>
+    <dialog class="dialog" id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-header"><h2 class="dialog-title" id="helpTitle">开始使用知事</h2><button class="dialog-close" id="closeHelp" type="button" aria-label="关闭帮助">×</button></div><div class="dialog-body help-content"><h3>把事情安排好</h3><p>点击「新建任务」创建待办提醒，或选用已有协作模板，为员工安排工作。</p><h3>跟进每一项工作</h3><p>在任务清单按状态、编号、名称和创建日期筛选。打开详情可查看进度、下载成果并继续处理。</p><h3>让助理帮你记</h3><p>进入对话，输入「30 分钟后提醒我回复客户」或「我的待办」。已有任务可在对话上方切换。</p><h3>连接员工与微信</h3><p>在账户管理添加员工，由员工本人扫码。AI 协作接口在设置中配置。</p><div class="help-shortcuts"><span>搜索页面与任务</span><kbd>Ctrl / ⌘ K</kbd><span>关闭窗口</span><kbd>Esc</kbd></div></div></dialog>
+    <div class="alert" id="connectionError" role="alert" hidden></div>
+    <div class="toast" id="toast" role="status"></div>
+
+    <script type="module" src="/static/workbench.js"></script>
 </body>
 </html>

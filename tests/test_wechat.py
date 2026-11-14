@@ -69,6 +69,24 @@ class WechatTests(unittest.TestCase):
         self.assertEqual(len(transport.sent), 1)
         self.assertEqual(pilot.state()['outbox'][0]['state'], 'unknown')
 
+    def test_starting_channel_keeps_one_pending_reminder_until_ready(self):
+        transport=FakeChannel(result='pending')
+        pilot=Pilot(self.root/'test.db', transport)
+        self.due(pilot)
+        with pilot.connect() as db:
+            before=db.execute('SELECT count(*) FROM messages').fetchone()[0]
+        pilot.tick()
+        pilot.tick()
+        self.assertEqual(len(pilot.state()['outbox']), 1)
+        self.assertEqual(pilot.state()['outbox'][0]['state'], 'pending')
+        with pilot.connect() as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM messages').fetchone()[0], before)
+        transport.result='submitted_unverified'
+        pilot.tick()
+        pilot.tick()
+        self.assertEqual(pilot.state()['outbox'][0]['state'], 'submitted_unverified')
+        self.assertEqual(len(transport.sent), 3)
+
     def test_unbound_channel_keeps_reminder_pending(self):
         transport=FakeChannel(bound=False)
         pilot=Pilot(self.root/'test.db', transport)
@@ -119,7 +137,8 @@ class WechatTests(unittest.TestCase):
         files=[]
         for name in ['test.xlsx','preview.png','issues.csv']:
             file=output/name;file.write_bytes(b'example');files.append(file)
-        with patch('zhishi.channels.wechat.bridge.subprocess.run',return_value=Mock(returncode=0)) as execute:
+        with patch('zhishi.channels.wechat.bridge.subprocess.run',return_value=Mock(returncode=0)) as execute, \
+             patch('zhishi.channels.wechat.bridge.gateway_readiness',return_value={'ready': True}):
             state,_=bridge.send_package('review package',files)
         self.assertEqual(state,'submitted_unverified')
         command=execute.call_args.args[0]

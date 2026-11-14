@@ -10,8 +10,9 @@ class IntentRouter:
         self.store = store
         self.model = model or ModelClient()
 
-    def interpret(self, text):
-        """Rules cover explicit pilot commands. Optional LLM only proposes structured intent."""
+    @staticmethod
+    def explicit(text):
+        """Return only an explicit reminder command, without calling any model."""
         if text in ("我的待办", "待办", "今天有什么事", "今天要做什么"):
             return {"action": "list"}
         match = re.fullmatch(r"(完成|取消)\s*#?(\d+)", text)
@@ -29,6 +30,13 @@ class IntentRouter:
         match = re.fullmatch(r"提醒我\s*(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+(.+)", text)
         if match:
             return {"action": "create", "title": match[3], "due": stamp(deadline(match[1] + "T" + match[2]))}
+        return None
+
+    def interpret(self, text):
+        """Rules cover explicit pilot commands. Optional LLM only proposes structured intent."""
+        intent = self.explicit(text)
+        if intent is not None:
+            return intent
         with self.store.connect() as db:
             config = self.store.settings(db)
         if config["mode"] != "model":

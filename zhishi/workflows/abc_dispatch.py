@@ -19,7 +19,7 @@ from .files import digest, encoded, scoped
 LABELS = {'scheduled':'等待定时触发','a_waiting':'已派给 A，等待完成确认',
           'a_processing':'正在生成模拟 A 成果','b_waiting':'已交接 B，等待完成确认',
           'b_processing':'正在生成模拟 B 成果','completed':'A、B 已完成，查看 C 汇报状态',
-          'failed':'处理失败','blocked':'成果变化，已停止交接'}
+          'failed':'处理失败','blocked':'成果变化，已停止交接','cancelled':'已关闭'}
 
 
 class ABCDispatch:
@@ -70,7 +70,7 @@ class ABCDispatch:
 
     def start(self, delay=30):
         with self.lock,self.store.connect() as db:
-            active = db.execute("SELECT code FROM abc_runs WHERE state NOT IN ('completed','failed','blocked') LIMIT 1").fetchone()
+            active = db.execute("SELECT code FROM abc_runs WHERE state NOT IN ('completed','failed','blocked','cancelled') LIMIT 1").fetchone()
             if active:
                 return f"已有 ABC 模拟 {active['code']}，请先完成当前任务。"
             route = self.transport.route() if self.transport and self.transport.enabled else None

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="pilot-token" content="__PILOT_TOKEN__">
+<title>知事 · AI 工作流</title><link rel="stylesheet" href="/static/styles.css">
+<style>
+main{max-width:1120px;margin:auto;padding:38px 22px}header{display:flex;justify-content:space-between;gap:20px;align-items:center}
+.stages{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.stages span{padding:8px 13px;background:#eaf2e9;border-radius:8px}
+.cards{display:grid;gap:20px;margin-top:20px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+textarea{width:100%;min-height:85px;padding:12px;border:1px solid #e6ebe5;border-radius:8px;font:inherit;box-sizing:border-box}
+details{margin:14px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:13px;line-height:1.8}.message{white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px solid #e6ebe5;padding:12px 0}
+.card-head{gap:12px;flex-wrap:wrap}button:disabled{opacity:.5;cursor:default}#error{color:#915b30;white-space:pre-wrap}
+.api-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:0 18px}.api-key{grid-column:1/-1}.field input[type=checkbox]{width:auto}.api-note{white-space:pre-wrap;color:#6d7f70}#api-feedback{white-space:pre-wrap;margin:14px 0}
+@media(max-width:700px){.api-grid{display:block}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">知事 / AI 工作流</div><h1>按任务推进，凭成果交接。</h1></div><a href="/">返回工作台</a></header>
+<div class="stages"><span>定时读取清单</span><span>负责人确认</span><span>协助员工1</span><span>协助员工2</span><span>最终校验</span><span>汇报负责人</span></div>
+<section class="card" style="margin-bottom:20px"><div class="card-head"><h2>AI 接口配置</h2><span class="badge" id="api-source">本机配置</span></div>
+<form class="body" id="api-form" autocomplete="off">
+<p class="subtitle">填写第三方平台提供的兼容接口地址、完整模型 ID 和 API Key。保存后立即生效；不会自动启动工作流。</p>
+<div class="api-grid">
+<div class="field"><label for="api-base">接口地址（Base URL）</label><input id="api-base" type="url" required maxlength="1000" placeholder="https://你的平台/v1"><small>也可粘贴完整的 /chat/completions 地址，系统会整理格式。</small></div>
+<div class="field"><label for="api-model">模型 ID</label><input id="api-model" required maxlength="200" placeholder="qwen3.8-max"><small>以第三方平台提供的名称为准。</small></div>
+<div class="field api-key"><label for="api-key">API Key</label><input id="api-key" type="password" maxlength="4000" autocomplete="new-password" spellcheck="false" placeholder="在本机粘贴 API Key"><small id="api-key-hint">密钥保存在本机，网页不会回显已保存的密钥。</small></div>
+</div>
+<details><summary>更多设置</summary><div class="field"><label><input id="api-brief" type="checkbox"> 简短回答，关闭深度思考（平台需支持千问参数）</label><label><input id="api-json" type="checkbox"> 要求平台返回 JSON 格式（平台需支持）</label><small>若测试提示参数不支持，可关闭这些选项后保存并重试。</small></div></details>
+<div class="row"><button class="primary" id="api-save" type="submit">保存并应用</button><button id="api-test" type="button">测试已保存的连接</button><button id="api-clear" type="button">清除保存的密钥</button></div>
+<div id="api-feedback" role="status" aria-live="polite"></div><p class="caption">连接测试仅向上述接口发送一条测试回复，不联系微信或员工。Windows 下密钥由当前用户加密保存；未填写时不能调用该第三方接口。</p>
+</form></section>
+<section class="card"><div class="card-head"><h2>接入准备</h2><span class="badge" id="model">读取中</span></div><div class="body">
+<p>API 用于理解回复；任务阶段、技能执行和完成校验由系统记录。任务渠道与每次流程的实际通道会在下方单独显示。</p>
+<p class="subtitle">待确定：执行时间或周期、两名员工的具体技能、三个角色的真实消息通道。接入准备记录见项目中的《AI工作流接入.md》。</p>
+<p class="subtitle">定时执行需要电脑开机且知事服务运行；这不会自动开机或启动已停止的知事。</p><p id="error" role="status"></p>
+<div id="tasks" class="cards"></div></div></section>
+<section class="card" style="margin-top:20px"><div class="card-head"><h2>派单与回复方式</h2><span class="badge">自然语言协作</span></div><div class="body">
+<p>每次通知会说清楚：你要做什么、系统接下来做什么、怎样和下一位协作。常见短句可以直接说，其他自然表达会结合当前任务理解。</p>
+<p class="subtitle">负责人可回“开始吧”；员工1先回“收到”记为接单，导好再说“好了”；员工2回“收到”就开始比对。核对成果后说“没问题”或“可以继续”即可。多件任务同时等待时，按提示回“第一个、第二个”。</p>
+<details id="message-preview"><summary>查看新版派单示例（仅预览，不发送）</summary><div id="message-preview-body"></div></details>
+</div></section>
+<div id="runs" class="cards"></div>
+<p class="caption">微信“已提交”表示通道已接受，送达与已读尚未确认。发送结果未知时不会自动重复发送。</p>
+</main><div class="toast" id="toast" role="status"></div><script type="module" src="/static/ai_dispatch.js"></script></body>
+</html>

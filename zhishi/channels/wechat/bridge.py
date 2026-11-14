@@ -13,11 +13,17 @@ import threading
 import time
 from pathlib import Path
 
+from .gateway import gateway_readiness, saved_gateway_alive
+
 
 class WechatBridge:
-    def __init__(self, root, profile=None):
+    def __init__(self, root, profile=None, port=18791, login_script='wechat_connect.py', *, data_directory=None, login_args=()):
         self.root = Path(root)
         self.profile = Path(profile) if profile else Path.home() / ".openclaw-zhishi-pilot"
+        self.port = port
+        self.login_script = login_script
+        self.data_directory = Path(data_directory) if data_directory else self.root / 'data' / ('employee2-wechat' if port == 18792 else '')
+        self.login_args = list(login_args)
         self.route_path = self.profile / "zhishi-binding.json"
         self.secret_path = self.profile / "zhishi-bridge.secret"
         self.profile.mkdir(parents=True, exist_ok=True)
@@ -40,19 +46,21 @@ class WechatBridge:
             if self.login_process is not None and self.login_process.poll() is None:
                 self.request_refresh()
                 return {'ok': True, 'detail': '正在结束旧的扫码请求并申请新二维码。'}
-            self.login_process = subprocess.Popen([sys.executable, '-X', 'utf8', str(self.root / 'wechat_connect.py')],
+            self.login_process = subprocess.Popen([sys.executable, '-X', 'utf8', str(self.root / self.login_script), *self.login_args],
                 cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         return {'ok': True, 'detail': '正在生成微信授权二维码。'}
 
     def request_refresh(self):
-        data = self.root / 'data'
-        data.mkdir(exist_ok=True)
+        data = self.data_directory
+        data.mkdir(parents=True, exist_ok=True)
         (data / 'wechat-refresh.request').write_text(secrets.token_hex(16), encoding='ascii')
 
     @property
     def enabled(self):
-        return (self.profile / "zhishi-bridge.enabled").exists()
+        return ((self.profile / "zhishi-bridge.enabled").exists()
+                and not (self.profile / 'zhishi-admin-paused').exists()
+                and not (self.profile / 'zhishi-account-deleted').exists())
 
     def route(self):
         try:
@@ -109,6 +117,9 @@ class WechatBridge:
         cli = self.root / ".runtime" / "openclaw" / "node_modules" / "openclaw" / "openclaw.mjs"
         if not node.exists() or not cli.exists():
             return "blocked", "本机微信运行环境缺失，未调用发送接口。"
+        if not gateway_readiness(self.port).get('ready'):
+            # No request has left this process, so keeping it pending is safe.
+            return 'pending', '等待微信通道就绪后发送。'
         env = os.environ.copy()
         env.update({"OPENCLAW_STATE_DIR": str(self.profile),
                     "OPENCLAW_CONFIG_PATH": str(self.profile / "openclaw.json"),
@@ -123,7 +134,7 @@ class WechatBridge:
             payload['mediaUrls'] = [str(file) for file in media]
         command = [str(node), str(cli), "gateway", "call", "send",
                    "--params", json.dumps(payload,ensure_ascii=False),
-                   "--port", "18791", "--expect-url", "ws://127.0.0.1:18791",
+                   "--port", str(self.port), "--expect-url", f"ws://127.0.0.1:{self.port}",
                    "--timeout", "120000" if media else "60000", "--json"]
         try:
             result = subprocess.run(command, env=env, cwd=self.root, capture_output=True,
@@ -137,10 +148,9 @@ class WechatBridge:
             return "unknown", "微信发送程序返回异常，结果未确认；请先核对手机。"
         return "submitted_unverified", "已提交微信通道，尚无手机可见／已读确认。"
 
-    @staticmethod
-    def gateway_listening():
+    def gateway_listening(self):
         try:
-            with socket.create_connection(('127.0.0.1',18791),timeout=0.25):
+            with socket.create_connection(('127.0.0.1',self.port),timeout=0.25):
                 return True
         except OSError:
             return False
@@ -159,11 +169,34 @@ class WechatBridge:
                 return
             self.gateway_last_start = current
             self.gateway_recovery = subprocess.Popen(
-                [sys.executable,'-X','utf8',str(self.root/'wechat_connect.py'),'--use-saved'],
+                [sys.executable,'-X','utf8',str(self.root/self.login_script), *self.login_args, '--use-saved'],
                 cwd=self.root,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
 
     def status(self):
-        return {"enabled": self.enabled, "bound": bool(self.route()),
+        bound, enabled = bool(self.route()), self.enabled
+        listening = self.gateway_listening()
+        readiness = gateway_readiness(self.port) if listening else {}
+        ready = bool(readiness.get('ready'))
+        directory = self.data_directory
+        try:
+            login = json.loads((directory / 'wechat-login.json').read_text('utf-8'))
+            if not isinstance(login, dict):
+                login = {}
+        except (OSError, ValueError):
+            login = {}
+        recovering = self.gateway_recovery is not None and self.gateway_recovery.poll() is None
+        starting = recovering or (listening and not readiness.get('core_ready') and login.get('state') != 'needs_attention') or (
+            login.get('state') == 'gateway_starting' and saved_gateway_alive(directory))
+        state = ('unbound' if not bound else 'disabled' if not enabled else 'ready' if ready
+                 else 'starting' if starting else 'needs_attention' if listening or login.get('state') == 'needs_attention'
+                 else 'offline')
+        details = {'ready': '微信通道已就绪，手机收发情况请以实际消息为准。',
+                   'starting': '正在启动已授权的微信通道，首次启动可能需要几分钟，无需重新扫码。',
+                   'needs_attention': '微信通道尚未就绪，请检查网络和微信运行日志。',
+                   'offline': '微信通道离线，后台会自动尝试恢复。',
+                   'disabled': '微信通道未启用。', 'unbound': '尚未绑定微信。'}
+        return {"enabled": enabled, "bound": bound,
                 "plugin_installed": (self.profile / "openclaw.json").exists(),
-                "gateway_listening": self.gateway_listening()}
+                "gateway_listening": listening, 'gateway_ready': ready,
+                'connection_state': state, 'connection_detail': details[state]}

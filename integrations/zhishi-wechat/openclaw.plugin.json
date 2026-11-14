@@ -8,7 +8,8 @@
     "properties": {
       "serviceUrl": { "type": "string" },
       "secretPath": { "type": "string" },
-      "routePath": { "type": "string" }
+      "routePath": { "type": "string" },
+      "mode": { "type": "string", "enum": ["pilot", "team"], "default": "pilot" }
     },
     "required": ["serviceUrl", "secretPath", "routePath"]
   }

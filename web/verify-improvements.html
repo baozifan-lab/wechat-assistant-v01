@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端改进验证页面</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        button {
+            background: #2d5016;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover { background: #234012; }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .info { color: #666; font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 知事项目前端改进验证</h1>
+
+    <div class="card">
+        <h2>1. 草稿持久化功能</h2>
+        <p>检查是否支持localStorage草稿保存：<span id="draft-status" class="status">检测中...</span></p>
+        <button onclick="testDraft()">测试草稿功能</button>
+        <div id="draft-result" class="info"></div>
+    </div>
+
+    <div class="card">
+        <h2>2. 页面可见性API</h2>
+        <p>检查是否支持后台停止轮询：<span id="visibility-status" class="status">检测中...</span></p>
+        <button onclick="testVisibility()">测试可见性检测</button>
+        <div id="visibility-result" class="info"></div>
+    </div>
+
+    <div class="card">
+        <h2>3. 主项目文件版本</h2>
+        <p>检查主页面是否加载了新版本：</p>
+        <button onclick="checkMainPage()">检查主页面</button>
+        <div id="main-result" class="info"></div>
+    </div>
+
+    <div class="card">
+        <h2>4. 关键功能快速测试</h2>
+        <ul>
+            <li>筛选器修复：访问 <a href="http://127.0.0.1:8765/#tasks" target="_blank">任务清单</a>，点击筛选按钮</li>
+            <li>配置模板：访问 <a href="http://127.0.0.1:8765/#settings" target="_blank">设置页面</a>，查看AI协作接口</li>
+            <li>草稿保存：访问 <a href="http://127.0.0.1:8765/#chat" target="_blank">对话页面</a>，输入文字后刷新</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>5. 强制刷新指南</h2>
+        <p><strong>重要：如果看不到改进，请按以下步骤操作：</strong></p>
+        <ol>
+            <li>关闭知事项目的所有标签页</li>
+            <li>在浏览器中按 <code>Ctrl + Shift + Delete</code> 打开清除浏览数据</li>
+            <li>只选择"缓存的图片和文件"，时间范围选"过去一小时"</li>
+            <li>点击"清除数据"</li>
+            <li>重新打开 <a href="http://127.0.0.1:8765" target="_blank">http://127.0.0.1:8765</a></li>
+        </ol>
+        <p class="info">或者直接按 <code>Ctrl + Shift + R</code> 强制刷新页面</p>
+    </div>
+
+    <script>
+        // 检测草稿功能
+        function testDraft() {
+            const status = document.getElementById('draft-status');
+            const result = document.getElementById('draft-result');
+
+            try {
+                // 测试写入
+                localStorage.setItem('zhishi_test', 'test_value');
+                const value = localStorage.getItem('zhishi_test');
+                localStorage.removeItem('zhishi_test');
+
+                if (value === 'test_value') {
+                    status.textContent = '✅ 支持';
+                    status.className = 'status success';
+                    result.textContent = '✅ localStorage可用，草稿持久化功能应该正常工作';
+
+                    // 检查是否有实际的草稿数据
+                    const drafts = localStorage.getItem('zhishi_drafts');
+                    if (drafts) {
+                        result.textContent += '\n📝 发现已保存的草稿：' + drafts.substring(0, 100) + '...';
+                    }
+                } else {
+                    status.textContent = '❌ 异常';
+                    status.className = 'status error';
+                    result.textContent = '❌ localStorage写入失败';
+                }
+            } catch (e) {
+                status.textContent = '❌ 不支持';
+                status.className = 'status error';
+                result.textContent = '❌ localStorage不可用：' + e.message;
+            }
+        }
+
+        // 检测页面可见性API
+        function testVisibility() {
+            const status = document.getElementById('visibility-status');
+            const result = document.getElementById('visibility-result');
+
+            if ('hidden' in document) {
+                status.textContent = '✅ 支持';
+                status.className = 'status success';
+                result.textContent = '✅ Page Visibility API可用\n';
+                result.textContent += '当前页面状态：' + (document.hidden ? '隐藏' : '可见');
+                result.textContent += '\n💡 切换到其他标签页测试后台停止轮询功能';
+            } else {
+                status.textContent = '❌ 不支持';
+                status.className = 'status error';
+                result.textContent = '❌ 浏览器不支持Page Visibility API';
+            }
+        }
+
+        // 检查主页面
+        async function checkMainPage() {
+            const result = document.getElementById('main-result');
+            result.textContent = '正在检查...';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8765/static/workbench.js?_=' + Date.now());
+                const text = await response.text();
+
+                const checks = {
+                    '草稿持久化': text.includes('loadDraftsFromStorage'),
+                    '筛选器修复': text.includes('.filter-btn'),
+                    '配置模板': text.includes('configPresets'),
+                    'Ctrl+Enter': text.includes('Ctrl+Enter'),
+                    '自动聚焦': text.includes('focus()'),
+                };
+
+                let allGood = true;
+                let details = '\n检测结果：\n';
+
+                for (const [name, passed] of Object.entries(checks)) {
+                    details += (passed ? '✅' : '❌') + ' ' + name + '\n';
+                    if (!passed) allGood = false;
+                }
+
+                if (allGood) {
+                    details += '\n🎉 所有改进都已加载！如果在主页面看不到效果，请强制刷新（Ctrl+Shift+R）';
+                } else {
+                    details += '\n⚠️ 某些改进未检测到，可能是缓存问题，请清除浏览器缓存';
+                }
+
+                result.textContent = details;
+            } catch (e) {
+                result.textContent = '❌ 检查失败：' + e.message;
+            }
+        }
+
+        // 页面加载时自动检测
+        window.onload = function() {
+            testDraft();
+            testVisibility();
+            checkMainPage();
+        };
+    </script>
+</body>
+</html>

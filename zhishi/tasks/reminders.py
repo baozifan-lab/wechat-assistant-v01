@@ -41,4 +41,5 @@ class ReminderService:
             state, detail = self.transport.send(row['text'])
             with self.lock, self.store.connect() as db:
                 db.execute("UPDATE outbox SET state=?,detail=? WHERE id=?", (state, detail, row['id']))
-                self.store.message(db, 'reminder', row['text'] + '\n\n[微信状态] ' + detail)
+                if state != 'pending':
+                    self.store.message(db, 'reminder', row['text'] + '\n\n[微信状态] ' + detail)

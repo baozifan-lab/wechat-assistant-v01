@@ -17,9 +17,13 @@ class Pilot:
     def __init__(self, database, transport: NotificationChannel | None = None):
         self.database = str(database)
         self.transport = transport
+        self.employee2_transport = None
         self.workflow = None
         self.two_stage = None
         self.abc = None
+        self.product_demo = None
+        self.invoice_demo = None
+        self.ai_dispatch = None
         self.lock = threading.RLock()
         self.request_lock = threading.Lock()
         self.store = Database(database)
@@ -50,7 +54,7 @@ class Pilot:
     def configure(self, data):
         return configure(self.store, self.lock, data)
 
-    def chat(self, text, request_id):
+    def chat(self, text, request_id, wechat_role=None):
         if not isinstance(text, str) or not 1 <= len(text.strip()) <= 2000:
             raise ValueError("消息须为 1–2000 个字符。")
         if not isinstance(request_id, str) or not 8 <= len(request_id) <= 100:
@@ -62,16 +66,58 @@ class Pilot:
                 saved = db.execute("SELECT response FROM requests WHERE id=?", (request_id,)).fetchone()
                 if saved:
                     return json.loads(saved[0])
-            for handler in (self.workflow, self.two_stage, self.abc):
+            if text.strip(' 。！!') in ('清单', '今日清单', '今日任务清单'):
+                from zhishi.workflows.daily_summary import daily_summary
+                reply = daily_summary(self, wechat_role)
+                result = {'reply': reply}
+                with self.connect() as db:
+                    self.message(db, 'user', text)
+                    self.message(db, 'assistant', reply)
+                    db.execute('INSERT INTO requests VALUES (?,?)', (request_id, json.dumps(result, ensure_ascii=False)))
+                return result
+            if getattr(self, 'work_orders', None):
+                reply = self.work_orders.command(text, wechat_role)
+                if reply is not None:
+                    result = {'reply': reply}
+                    with self.connect() as db:
+                        db.execute('INSERT INTO requests VALUES (?,?)', (request_id, json.dumps(result, ensure_ascii=False)))
+                    return result
+            for handler in (self.invoice_demo, self.product_demo, self.workflow, self.two_stage, self.abc):
                 if handler is None:
                     continue
-                reply = handler.command(text)
+                if wechat_role == 'employee2' and handler not in (self.product_demo, self.invoice_demo):
+                    continue
+                # A generic legacy hint must not consume a reply to the current
+                # AI task. Explicit JOB/version commands still route here first.
+                if handler is self.workflow and text in ('确认', '没问题', '确认发送'):
+                    continue
+                reply = handler.command(text, wechat_role) if handler in (self.product_demo, self.invoice_demo) else handler.command(text)
                 if reply is not None:
                     result = {"reply": reply}
                     with self.connect() as db:
                         self.message(db, "user", text)
                         self.message(db, "assistant", reply)
                         db.execute("INSERT INTO requests VALUES (?,?)", (request_id, json.dumps(result, ensure_ascii=False)))
+                    return result
+            if self.ai_dispatch:
+                reply = self.ai_dispatch.command(text, wechat_role, request_id)
+                if reply is not None:
+                    result = {'reply': reply}
+                    with self.connect() as db:
+                        self.message(db, 'user', text)
+                        self.message(db, 'assistant', reply)
+                        db.execute('INSERT INTO requests VALUES (?,?)', (request_id, json.dumps(result, ensure_ascii=False)))
+                    return result
+            if wechat_role == 'employee2':
+                return {'reply':'员工2账号仅用于商品排查演示，请按收到的任务消息回复。'}
+            if self.workflow is not None and text in ('确认', '没问题', '确认发送'):
+                reply = self.workflow.command(text)
+                if reply is not None:
+                    result = {'reply': reply}
+                    with self.connect() as db:
+                        self.message(db, 'user', text)
+                        self.message(db, 'assistant', reply)
+                        db.execute('INSERT INTO requests VALUES (?,?)', (request_id, json.dumps(result, ensure_ascii=False)))
                     return result
             intent = self.interpret(text)
             with self.lock, self.connect() as db:

@@ -16,6 +16,7 @@ import zlib
 from pathlib import Path
 
 from .bridge import WechatBridge
+from .gateway import startup_lock, saved_gateway_alive, gateway_readiness, save_gateway_identity
 from zhishi.config import ROOT
 
 PROFILE = Path.home() / '.openclaw-zhishi-pilot'
@@ -23,12 +24,38 @@ NODE_DIR = ROOT / '.runtime' / 'node-v24.22.1-win-x64'
 NODE = NODE_DIR / 'node.exe'
 CLI = ROOT / '.runtime' / 'openclaw' / 'node_modules' / 'openclaw' / 'openclaw.mjs'
 DATA = ROOT / 'data'
+PORT = 18791
+BRIDGE_SECRET = None
+QR_PROFILE = PROFILE
+SERVICE_URL = 'http://127.0.0.1:8765'
+BINDING_CHECK = None
+LOGIN_PAUSE_GENERATION = None
+
+
+class BindingRejected(RuntimeError):
+    """A fixed, user-facing identity validation message; contains no credentials."""
+
+
+def pause_generation():
+    try:
+        return (PROFILE / 'zhishi-admin-paused').read_text('ascii')
+    except FileNotFoundError:
+        return None
+
+
+def enable_after_login():
+    # Serialize the final authorization step with an administrator's pause.
+    with startup_lock(PROFILE / 'authorization') as acquired:
+        if not acquired or (PROFILE / 'zhishi-account-deleted').exists() or pause_generation() != LOGIN_PAUSE_GENERATION:
+            raise BindingRejected('连接已被停用或授权状态已变化，请重新申请二维码。')
+        (PROFILE / 'zhishi-admin-paused').unlink(missing_ok=True)
+        (PROFILE / 'zhishi-bridge.enabled').write_text('enabled', encoding='ascii')
 
 
 def write_status(state, **details):
     DATA.mkdir(exist_ok=True)
-    temp = DATA / 'wechat-login.tmp'
-    temp.write_text(json.dumps({'state': state, **details}, ensure_ascii=False), encoding='utf-8')
+    temp = DATA / ('wechat-login-' + secrets.token_hex(8) + '.tmp')
+    temp.write_text(json.dumps({'state': state, 'updated_at': int(time.time()*1000), **details}, ensure_ascii=False), encoding='utf-8')
     temp.replace(DATA / 'wechat-login.json')
     print(state, flush=True)
 
@@ -120,7 +147,7 @@ def environment():
 
 
 def qr_image(url):
-    sources = list((PROFILE / 'npm' / 'projects').glob('*/node_modules/qrcode-terminal/vendor/QRCode/index.js'))
+    sources = list((QR_PROFILE / 'npm' / 'projects').glob('*/node_modules/qrcode-terminal/vendor/QRCode/index.js'))
     if not sources:
         raise RuntimeError('官方二维码依赖尚未就绪。')
     script = "const Q=require(process.argv[1]);const q=new Q(-1,1);q.addData(process.argv[2]);q.make();process.stdout.write(JSON.stringify(q.modules));"
@@ -159,10 +186,12 @@ def prepare_binding():
     peer = credentials.get('userId')
     if not isinstance(peer, str) or not peer:
         raise RuntimeError('扫码账号缺少本人会话标识，暂不启用消息路由。')
+    if BINDING_CHECK:
+        BINDING_CHECK(account, peer)
     bridge = WechatBridge(ROOT, PROFILE)
     bridge.route_path.write_text(json.dumps({'account_id': account, 'peer_id': peer}, ensure_ascii=False), encoding='utf-8')
     bridge.route_path.chmod(0o600)
-    (PROFILE / 'zhishi-bridge.enabled').write_text('enabled', encoding='ascii')
+    enable_after_login()
     config_file = PROFILE / 'openclaw.json'
     config = json.loads(config_file.read_text('utf-8'))
     plugins = config.setdefault('plugins', {})
@@ -174,40 +203,57 @@ def prepare_binding():
     entries = plugins.setdefault('entries', {})
     entries.setdefault('openclaw-weixin', {})['enabled'] = True
     entries['zhishi-wechat-bridge'] = {'enabled': True, 'config': {
-        'serviceUrl': 'http://127.0.0.1:8765', 'secretPath': str(bridge.secret_path), 'routePath': str(bridge.route_path)}}
+        'serviceUrl': SERVICE_URL, 'secretPath': str(BRIDGE_SECRET or bridge.secret_path), 'routePath': str(bridge.route_path)}}
     config.setdefault('session', {})['dmScope'] = 'per-account-channel-peer'
-    config.setdefault('gateway', {}).update({'mode': 'local', 'bind': 'loopback', 'port': 18791})
+    config.setdefault('gateway', {}).update({'mode': 'local', 'bind': 'loopback', 'port': PORT})
     config.setdefault('tools', {})['profile'] = 'minimal'
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
     write_status('bound', detail='本人账号已授权，等待微信收发测试。')
 
 
-def start_gateway():
-    # A second login must not create a second owner of the gateway port.
-    with socket.socket() as probe:
-        if probe.connect_ex(('127.0.0.1', 18791)) == 0:
+def start_gateway(timeout=300):
+    # Cover the entire cold start, including the period before a port is bound.
+    # QR login and saved-account recovery share this lock across all processes.
+    with startup_lock(PROFILE) as acquired:
+        if not acquired:
             return
-    log = (DATA / 'wechat-gateway.log').open('ab')
+        _start_gateway(timeout)
+
+
+def _start_gateway(timeout):
+    DATA.mkdir(exist_ok=True)
+    gateway = None
+    if gateway_readiness(PORT).get('ready'):
+        write_status('gateway_started', detail='微信通道已就绪。')
+        return
+    write_status('gateway_starting', detail='正在启动已授权的微信通道，首次启动可能需要几分钟，无需重新扫码。')
     try:
-        gateway = subprocess.Popen([str(NODE), str(CLI), 'gateway', 'run', '--port', '18791', '--bind', 'loopback'],
-                                   env=environment(), cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
-                                   creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    finally:
-        log.close()
-    (DATA / 'wechat-gateway.pid').write_text(str(gateway.pid), encoding='ascii')
-    for _ in range(60):
-        if gateway.poll() is not None:
-            write_status('needs_attention', detail='微信已授权，但通道启动失败，需检查本地运行记录。')
-            return
         with socket.socket() as probe:
-            if probe.connect_ex(('127.0.0.1', 18791)) == 0:
-                write_status('gateway_started', detail='微信通道已启动。请在微信发送“我的待办”，验证收发。')
+            listening = probe.connect_ex(('127.0.0.1', PORT)) == 0
+        # A supervisor can exit while its child is still booting. Reuse that
+        # child even when it has not opened a listener yet.
+        if not listening and not saved_gateway_alive(DATA):
+            with (DATA / 'wechat-gateway.log').open('ab') as log:
+                gateway = subprocess.Popen([str(NODE), str(CLI), 'gateway', 'run', '--port', str(PORT), '--bind', 'loopback'],
+                    env=environment(), cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            save_gateway_identity(DATA, gateway.pid)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if gateway is not None and gateway.poll() is not None:
+                write_status('needs_attention', detail='微信已授权，但通道启动失败，请查看微信运行日志。')
                 return
-        time.sleep(1)
-    write_status('bound', detail='微信已授权，通道仍在启动，请稍后发“我的待办”测试。')
+            if gateway_readiness(PORT).get('ready'):
+                write_status('gateway_started', detail='微信通道已就绪。请在微信发送“我的待办”，验证收发。')
+                return
+            time.sleep(1)
+        write_status('needs_attention', detail='微信通道在5分钟内未就绪，授权仍保留；请检查网络和微信运行日志。')
+    except (OSError, subprocess.SubprocessError):
+        write_status('needs_attention', detail='无法启动微信通道，授权仍保留；请检查微信运行环境和日志。')
 
 
 def main():
+    global LOGIN_PAUSE_GENERATION
     parser = argparse.ArgumentParser()
     parser.add_argument('--use-saved', action='store_true')
     args = parser.parse_args()
@@ -234,6 +280,7 @@ def main():
     try:
         while True:
             generation = refresh_generation()
+            LOGIN_PAUSE_GENERATION = pause_generation()
             result = login_attempt(generation)
             if result == 'refresh':
                 continue
@@ -242,6 +289,8 @@ def main():
             prepare_binding()
             start_gateway()
             return
+    except BindingRejected as error:
+        write_status('error', detail=str(error))
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
         write_status('error', detail='微信登录流程暂时失败，请点击刷新重试。')
     finally:

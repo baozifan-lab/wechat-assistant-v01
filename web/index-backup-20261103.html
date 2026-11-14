@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="pilot-token" content="__PILOT_TOKEN__">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>知事 · 智能工作助理</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">知</div>
+                <div class="logo-text">
+                    <h1>知事</h1>
+                    <span>智能工作助理</span>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>工作台</span>
+            </a>
+            <a href="#tasks" class="nav-item" data-page="tasks">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                </svg>
+                <span>任务清单</span>
+            </a>
+            <a href="#chat" class="nav-item" data-page="chat">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                </svg>
+                <span>对话助理</span>
+            </a>
+            <a href="#settings" class="nav-item" data-page="settings">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m-9-9h6m6 0h6"></path>
+                </svg>
+                <span>设置</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span id="serviceStatus" role="status">正在连接服务…</span>
+            </div>
+            <div class="time-display" id="currentTime"></div>
+        </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 工作台页面 -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">工作台</h2>
+                    <p class="page-subtitle" id="greetingText">今天也要加油哦 👋</p>
+                </div>
+                <button class="btn btn-primary" id="quickAddTask">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    新建任务
+                </button>
+            </div>
+
+            <!-- 快速统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-pending">0</div>
+                        <div class="stat-label">进行中 · 待办与协作</div>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-completed">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-scheduled">0</div>
+                        <div class="stat-label">需要处理</div>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-channel">演示</div>
+                        <div class="stat-label">协作渠道</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近任务和快速操作 -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>最近任务</h3>
+                        <a href="#tasks" class="link-subtle">查看全部 →</a>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentTasks" class="task-list-compact"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>快速操作</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" data-say="我的待办">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <span>查看待办</span>
+                            </button>
+                            <button class="quick-action-btn" data-draft="30 分钟后提醒我">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <span>30分钟提醒</span>
+                            </button>
+                            <button class="quick-action-btn" data-draft="明天上午9点提醒我">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+                                    <circle cx="12" cy="10" r="3"></circle>
+                                </svg>
+                                <span>明天提醒</span>
+                            </button>
+                            <button class="quick-action-btn" id="testReminderBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                                <span>测试10秒提醒</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务清单页面 -->
+        <div class="page" id="page-tasks">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">任务清单</h2>
+                    <p class="page-subtitle">统一管理待办提醒、AI 协作和已有工作流</p>
+                </div>
+                <div class="header-actions">
+                    <div class="filter-tabs">
+                        <button class="filter-tab active" data-filter="all">全部</button>
+                        <button class="filter-tab" data-filter="open">进行中</button>
+                        <button class="filter-tab" data-filter="done">已完成</button>
+                        <button class="filter-tab" data-filter="blocked">需处理</button>
+                        <button class="filter-tab" data-filter="cancelled">已取消</button>
+                    </div>
+                    <button class="btn btn-primary" id="addTaskBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        新建任务
+                    </button>
+                </div>
+            </div>
+
+            <section class="card workbench-section" aria-label="AI 协作任务模板">
+                <div class="card-header"><h3>AI 协作任务</h3><a href="#settings" class="link-subtle">配置接口与渠道 →</a></div>
+                <div class="card-body" id="workflowTemplates"></div>
+            </section>
+            <details class="card workbench-section" id="message-preview"><summary class="card-header">查看派单与自然语言回复示例（仅预览）</summary><div class="card-body" id="message-preview-body"></div></details>
+            <div class="card">
+                <div class="card-body no-padding">
+                    <div id="tasksList" class="tasks-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 对话助理页面 -->
+        <div class="page" id="page-chat">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">对话助理</h2>
+                    <p class="page-subtitle">选择当前工作，使用自然语言沟通</p>
+                </div>
+                <div class="status-badge" id="chatModeBadge">规则模式</div>
+            </div>
+
+            <div class="conversation-picker"><label for="chatTarget">当前对话</label><select id="chatTarget" class="form-select"><option value="assistant">日常待办助理</option></select><p id="chatContextHint" class="form-help"></p></div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-area">
+                    <div class="quick-phrases">
+                        <button class="phrase-chip" data-say="我的待办">📋 我的待办</button>
+                        <button class="phrase-chip" data-say="30 分钟后提醒我回复客户">⏰ 30分钟提醒</button>
+                        <button class="phrase-chip" data-say="明天上午9点提醒我开会">📅 明天提醒</button>
+                    </div>
+                    <form class="chat-input-form" id="chatForm">
+                        <input
+                            type="text"
+                            class="chat-input"
+                            id="chatInput"
+                            aria-label="回复内容"
+                            placeholder="告诉助理你想做什么..."
+                            maxlength="2000"
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="btn btn-primary btn-icon" id="sendBtn" aria-label="发送回复">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置页面 -->
+        <div class="page" id="page-settings">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">系统设置</h2>
+                    <p class="page-subtitle">配置模型和通知渠道</p>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <section class="card workflow-settings">
+                    <div class="card-header"><h3>AI 协作接口</h3><span class="status-badge" id="workflowModelStatus">正在读取</span></div>
+                    <form class="card-body" id="workflowModelForm" autocomplete="off">
+                        <p class="card-description">用于理解负责人和员工的任务回复，配置后立即生效。</p>
+                        <div class="form-group"><label class="form-label" for="workflowBase">接口地址（Base URL）</label><input class="form-input" id="workflowBase" type="url" required maxlength="1000" placeholder="https://平台地址/v1"></div>
+                        <div class="form-group"><label class="form-label" for="workflowModel">模型 ID</label><input class="form-input" id="workflowModel" required maxlength="200" placeholder="qwen3.8-max"></div>
+                        <div class="form-group"><label class="form-label" for="workflowKey">API Key</label><input class="form-input" id="workflowKey" type="password" maxlength="4000" autocomplete="new-password"><p class="form-help" id="workflowKeyHint"></p></div>
+                        <details><summary>更多设置</summary><label class="check-label"><input id="workflowBrief" type="checkbox"> 请求关闭深度思考</label><label class="check-label"><input id="workflowJson" type="checkbox"> 请求 JSON 格式</label></details>
+                        <div class="button-row"><button class="btn btn-primary" type="submit">保存并应用</button><button class="btn btn-secondary" type="button" id="workflowTest">测试已保存的连接</button><button class="btn btn-secondary" type="button" id="workflowClear">清除密钥</button></div>
+                        <p class="form-help" id="workflowFeedback" role="status"></p>
+                        <p class="form-help">密钥在本机加密保存。连接测试会调用所填接口，不启动任务或联系员工。</p>
+                    </form>
+                </section>
+                <!-- 模型配置 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>日常待办理解（独立配置）</h3>
+                        <div class="status-badge" id="modelStatusBadge">未配置</div>
+                    </div>
+                    <div class="card-body">
+                        <form id="settingsForm">
+                            <div class="form-group">
+                                <label class="form-label">工作模式</label>
+                                <select class="form-select" id="modeSelect">
+                                    <option value="rules">规则模式 - 无需模型</option>
+                                    <option value="model">模型模式 - AI辅助理解</option>
+                                </select>
+                                <p class="form-help">仅用于普通待办；不影响左侧 AI 协作接口。模型模式需服务启动时配置接口。</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">理解模型</label>
+                                <select class="form-select" id="modelSelect"></select>
+                                <p class="form-help">模型名称使用网关别名</p>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 微信配置 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>微信通知</h3>
+                        <div class="status-badge status-offline" id="wechatStatusBadge">未连接</div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-description">通过腾讯官方 OpenClaw 连接微信账号</p>
+
+                        <button class="btn btn-secondary btn-block" id="wechatConnectBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path>
+                            </svg>
+                            连接微信 / 刷新二维码
+                        </button>
+
+                        <div id="wechatQrContainer" class="qr-container" style="display: none;">
+                            <img id="wechatQrCode" class="qr-code" alt="微信扫码" />
+                            <p class="qr-status" id="wechatLoginStatus">请用微信扫描二维码</p>
+                        </div>
+
+                        <div class="steps">
+                            <div class="step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h4>安装 OpenClaw</h4>
+                                    <p>在独立环境安装官方插件</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h4>扫码授权</h4>
+                                    <p>使用本人微信扫码并发送测试消息</p>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h4>验证提醒</h4>
+                                    <p>确认即时、隔夜、重启后的提醒</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="https://github.com/Tencent/openclaw-weixin" target="_blank" class="link-external">
+                            查看官方文档 →
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <section class="card workbench-section"><div class="card-header"><h3>员工2微信</h3><span id="employee2Status" class="status-badge">正在读取</span></div><div class="card-body"><p class="card-description">主微信用于负责人和员工1；员工2使用独立绑定。当前仍为本机试点身份映射。</p><button class="btn btn-secondary" id="employee2Connect">连接员工2微信 / 刷新二维码</button><p id="employee2LoginStatus" class="form-help"></p><img id="employee2Qr" class="qr-code" alt="员工2微信扫码二维码" hidden></div></section>
+            <!-- 提醒记录 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>提醒记录</h3>
+                    <span class="badge-subtle">最近 30 条</span>
+                </div>
+                <div class="card-body no-padding">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>任务内容</th>
+                                    <th>发送时间</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 新建任务对话框 -->
+    <dialog class="modal" id="taskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">新建任务</h3>
+                <button class="modal-close" id="closeModal" type="button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="taskForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">任务内容</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="taskTitle"
+                            placeholder="例如：提交项目周报"
+                            required
+                            maxlength="300"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">提醒时间</label>
+                        <input
+                            type="datetime-local"
+                            class="form-input"
+                            id="taskDue"
+                            required
+                        >
+                        <p class="form-help">首次提醒时间也作为截止时间保存</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('taskModal').close()">取消</button>
+                    <button type="submit" class="btn btn-primary">创建任务</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog class="modal work-detail" id="workModal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title" id="workTitle">任务详情</h3><button class="modal-close" id="closeWorkModal" type="button" aria-label="关闭任务详情">×</button></div><div class="modal-body" id="workDetail"></div></div></dialog>
+    <div class="connection-banner" id="connectionError" role="alert" hidden></div>
+    <!-- Toast 通知 -->
+    <div class="toast" id="toast" role="status"></div>
+
+    <script type="module" src="/static/workbench.js"></script>
+</body>
+</html>

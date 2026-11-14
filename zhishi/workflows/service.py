@@ -23,6 +23,7 @@ class Workflows:
         self.project = self.root / "projects" / "excel-demo"
         self.output = self.root / "outputs" / "01a1963b-workflow"
         self.lock = threading.RLock()
+        self.tick_lock = threading.Lock()
         self.scan_count = 0
         initialize(self.pilot)
         self.documents = DocumentPlan(self.root, self.project)
@@ -71,7 +72,7 @@ class Workflows:
 
     @staticmethod
     def label(state):
-        return {'queued':'等待执行','running':'执行中','failed':'执行失败','awaiting_review':'等待本人验收','approved':'已确认，等待投递','sending':'模拟投递中','delivered':'模拟投递完成','superseded':'已被新版本替代','blocked':'文件已变化，需重新制作','rejected':'要求修改'}.get(state,state)
+        return {'queued':'等待执行','running':'执行中','failed':'执行失败','awaiting_review':'等待本人验收','approved':'已确认，等待投递','sending':'模拟投递中','delivered':'模拟投递完成','superseded':'已被新版本替代','blocked':'文件已变化，需重新制作','rejected':'要求修改','cancelled':'已关闭'}.get(state,state)
 
     def approve(self,code,version):
         with self.lock,self.pilot.connect() as db:
@@ -128,6 +129,14 @@ class Workflows:
             self.pilot.message(db,'assistant',f"{run['code']} V{run['version']} 已投递到两名模拟收件人的本地收件箱。未联系真实人员。")
 
     def tick(self):
+        if not self.tick_lock.acquire(blocking=False):
+            return
+        try:
+            self._tick_once()
+        finally:
+            self.tick_lock.release()
+
+    def _tick_once(self):
         with self.lock,self.pilot.connect() as db:
             row=db.execute("SELECT * FROM workflow_runs WHERE state='queued' ORDER BY created_at LIMIT 1").fetchone()
             if row:db.execute("UPDATE workflow_runs SET state='running' WHERE uid=? AND state='queued'",(row['uid'],))

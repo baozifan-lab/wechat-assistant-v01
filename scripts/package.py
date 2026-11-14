@@ -7,9 +7,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIRS = {'zhishi','web','tests','scripts','docs','integrations','workflows','projects'}
 EXCLUDE_DIRS = {'node_modules','__pycache__','模拟收件箱','样例预览','.git'}
-SOURCE_SUFFIXES = {'.py','.mjs','.js','.html','.css','.md','.ps1','.yaml','.json','.xlsx','.csv','.png'}
+SOURCE_SUFFIXES = {'.py','.mjs','.js','.html','.css','.md','.ps1','.yaml','.json','.sql','.xlsx','.csv','.png'}
 ROOT_FILES = {
-    'app.py','workflow.py','wechat_bridge.py','wechat_connect.py','wechat.ps1','start.ps1',
+    'app.py','workflow.py','wechat_bridge.py','wechat_connect.py','wechat_employee2_connect.py','wechat_account_connect.py','wechat.ps1','start.ps1',
     '.gitignore','.env.example','litellm.config.example.yaml',
 }
 

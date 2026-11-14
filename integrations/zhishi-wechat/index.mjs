@@ -1,8 +1,10 @@
 import fs from 'node:fs';
+import {createHmac} from 'node:crypto';
 
 export function createHandler(config, fetcher = fetch) {
   const base = new URL(config.serviceUrl);
-  if (base.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(base.hostname)) {
+  const protocols=config.mode==='team'?['http:','https:']:['http:'];
+  if (!protocols.includes(base.protocol) || !['127.0.0.1', 'localhost'].includes(base.hostname)) {
     throw new Error('Zhishi bridge accepts only a local service URL.');
   }
   return async (event, context = {}) => {
@@ -17,6 +19,29 @@ export function createHandler(config, fetcher = fetch) {
     // Never use message text, session-key parsing, or a group target as identity.
     const peer = event.senderId || context.senderId ||
       (event.isGroup === false ? context.conversationId : undefined);
+    if (config.mode === 'team') {
+      if (event.isGroup !== false || !account || !peer || account !== route.account_id) {
+        return {handled: true, text: '多人协作仅接受已配置账号的真实私聊消息。'};
+      }
+      const messageId = event.messageId || context.messageId;
+      if (!messageId) return {handled: true, text: '缺少消息编号，未执行操作。'};
+      try {
+        const secret = fs.readFileSync(config.secretPath, 'utf8').trim();
+        if (secret.length < 32) throw Error('secret');
+        const timestamp = String(Math.floor(Date.now() / 1000));
+        const body = JSON.stringify({account_id: account, peer_id: peer, source_message_id: String(messageId),
+          text: (event.content || event.body || '').trim(), is_group: false});
+        const signature = createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');
+        const response = await fetcher(new URL('/api/team/wechat/inbound', base), {
+          method: 'POST', headers: {'Content-Type': 'application/json', 'X-Team-Bridge-Time': timestamp,
+            'X-Team-Bridge-Signature': signature}, body, redirect: 'error', signal: AbortSignal.timeout(35000),
+        });
+        const result = await response.json();
+        return {handled: true, text: response.ok ? result.reply : (result.error || '协作服务暂不可用。')};
+      } catch {
+        return {handled: true, text: '协作服务结果未确认，请先查询当前任务，避免重复操作。'};
+      }
+    }
     if (event.isGroup || account !== route.account_id || peer !== route.peer_id) {
       // Never fall through into an agent/model with another sender's data.
       return { handled: true, text: '当前为本人试点，这个会话尚未获准访问待办。' };
@@ -29,6 +54,7 @@ export function createHandler(config, fetcher = fetch) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Wechat-Bridge': fs.readFileSync(config.secretPath, 'utf8').trim() },
         body: JSON.stringify({ account_id: account, peer_id: peer, source_message_id: String(messageId), text, is_group: false }),
+        redirect: 'error',
         signal: AbortSignal.timeout(35000),
       });
       const result = await response.json();

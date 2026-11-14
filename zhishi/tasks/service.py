@@ -31,8 +31,8 @@ class TaskService:
         db.execute("UPDATE outbox SET state='cancelled' WHERE task_id=? AND state='pending'", (ident,))
         if action in ("done", "cancel"):
             state = "done" if action == "done" else "cancelled"
-            db.execute("UPDATE tasks SET status=?,next_at=NULL,version=version+1 WHERE id=? AND owner=?",
-                       (state, ident, OWNER))
+            db.execute("UPDATE tasks SET status=?,next_at=NULL,version=version+1,completed_at=? WHERE id=? AND owner=?",
+                       (state, stamp(), ident, OWNER))
             reply = f"#{ident} 已{'完成' if action == 'done' else '取消'}，后续提醒已停止。"
         elif action == "snooze":
             minutes = int(minutes)

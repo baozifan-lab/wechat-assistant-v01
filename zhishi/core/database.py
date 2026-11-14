@@ -35,6 +35,9 @@ class Database:
                 db.execute("ALTER TABLE outbox ADD COLUMN channel TEXT NOT NULL DEFAULT 'demo'")
             if 'detail' not in columns:
                 db.execute("ALTER TABLE outbox ADD COLUMN detail TEXT NOT NULL DEFAULT ''")
+            task_columns = {row['name'] for row in db.execute('PRAGMA table_info(tasks)')}
+            if 'completed_at' not in task_columns:
+                db.execute('ALTER TABLE tasks ADD COLUMN completed_at TEXT')
             db.execute("UPDATE outbox SET state='unknown',detail='服务重启前发送未确认，不自动重发。' WHERE state='sending'")
             if not db.execute("SELECT 1 FROM messages LIMIT 1").fetchone():
                 self.message(db, "assistant", "我是你的工作助理。这里是本地试点，微信尚未连接。\n试试：10 秒后提醒我提交项目周报。\n也可以发送：我的待办、完成 1、10 分钟后提醒 1。")

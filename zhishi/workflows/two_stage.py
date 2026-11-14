@@ -23,7 +23,7 @@ from .two_stage_notifications import TwoStageNotifications
 LABELS = {
     'a_queued':'第一段等待执行', 'a_running':'A 正在整合', 'a_review':'等待模拟 A 确认',
     'b_queued':'已交接，B 等待执行', 'b_running':'B 正在汇总', 'b_review':'等待模拟 B 确认',
-    'completed':'两段式验证完成', 'failed':'执行失败', 'blocked':'文件发生变化，流程已阻止',
+    'completed':'两段式验证完成', 'failed':'执行失败', 'blocked':'文件发生变化，流程已阻止', 'cancelled':'已关闭',
 }
 
 
@@ -70,7 +70,7 @@ class TwoStageDemo:
 
     def start(self, *, wechat=False):
         with self.lock, self.store.connect() as db:
-            active = db.execute("SELECT code,notice_enabled FROM two_stage_runs WHERE state NOT IN ('completed','failed','blocked') ORDER BY created_at DESC LIMIT 1").fetchone()
+            active = db.execute("SELECT code,notice_enabled FROM two_stage_runs WHERE state NOT IN ('completed','failed','blocked','cancelled') ORDER BY created_at DESC LIMIT 1").fetchone()
             if active:
                 if bool(active['notice_enabled'])!=wechat:
                     raise ValueError('已有其他通道的两段式验证未完成，请先完成当前验证。')
